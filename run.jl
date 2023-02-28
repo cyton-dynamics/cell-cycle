@@ -1,13 +1,12 @@
-using CellCycle
 using Cyton
 using Gadfly
-
+using CellCycle: createPopulation, stretchedCellFactory, BrduStimulus, dnaStainLevels, runModel!
 struct RunResult
   plot::Union{Nothing, Plot}
   dnas::Vector{Real}
   brdus::Vector{Real}
   stimDur::Real
-  model::CellPopulation
+  model::CytonModel
   negDnaCnt::Int
 end
 
@@ -18,27 +17,27 @@ if forReal
   stimDurs = [0.5, 1.0, 2.0, 4.0]
   for stimDur in stimDurs
     local model, rt, dnas, result, p, brdus, negDnaCnt
-    model = CellCycle.createPopulation(200000, CellCycle.stretchedCellFactory)
+    model = createPopulation(200000, stretchedCellFactory)
     # model.properties[:Δt] = 0.01
   
-    stim = CellCycle.BrduStimulus(0.5, 0.5+stimDur)
-    rt = CellCycle.runModel!(model, 1.0+stimDur, stim)
+    stim = BrduStimulus(0.5, 0.5+stimDur)
+    rt = runModel!(model, 1.0+stimDur, stim)
   
-    (dnas, brdus, negDnaCnt) = CellCycle.dnaStainLevels(model);
+    (dnas, brdus, negDnaCnt) = dnaStainLevels(model);
 
-    # title = "pulse=$(Int(round(stimDur*60)))mins"
-    # p = plot(x=dnas, 
-    # y=brdus, 
-    # Geom.histogram2d, 
-    # Guide.xlabel("DNA"), 
-    # Guide.ylabel("BrdU"), 
-    # Coord.cartesian(xmin=50000, xmax=200000, ymin=1, ymax=5), 
-    # Scale.y_log10, 
-    # Guide.title(title),
-    # Theme(background_color="white", key_position=:none))
-    # display(p)
-    # p |> PNG("/Users/thomas.e/Desktop/$(title).png", 15cm, 15cm)
-    p = nothing
+    title = "pulse=$(Int(round(stimDur*60)))mins"
+    p = plot(x=dnas, 
+    y=brdus, 
+    Geom.histogram2d, 
+    Guide.xlabel("DNA"), 
+    Guide.ylabel("BrdU"), 
+    Coord.cartesian(xmin=50000, xmax=200000, ymin=1, ymax=5), 
+    Scale.y_log10, 
+    Guide.title(title),
+    Theme(background_color="white", key_position=:none))
+    display(p)
+    p |> PNG("/Users/thomas.e/Desktop/$(title).png", 15cm, 15cm)
+    # p = nothing
     result = RunResult(p, dnas, brdus, stimDur, model, negDnaCnt)
     push!(results, result)
   end  

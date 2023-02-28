@@ -10,7 +10,7 @@ https://dx.doi.org/10.1073/pnas.1322420111
 """
 
 using Cyton
-import Cyton: shouldDie, shouldDivide, inherit, step, stimulate
+import Cyton: inherit, step, stimulate, sample
 using Gadfly: plot, layer, cm, Gadfly, Theme, Guide, Geom, Col, mm, style, Scale, PNG, SVG, SVGJS, Coord, Plot
 using Serialization, Cairo, DataFrames, Base.Threads, Colors, Cairo
 
@@ -37,8 +37,8 @@ mutable struct BrduStatus
   positive::Bool
 end
 function BrduStatus(brduLo::DistributionParmSet, brduHi::DistributionParmSet)
-  l = Cyton.draw(brduLo)
-  h = Cyton.draw(brduHi)
+  l = sample(brduLo)
+  h = sample(brduHi)
   BrduStatus(l, h, l, false)
 end
 
@@ -59,7 +59,7 @@ function CycleTimer(λ::DistributionParmSet,
   
   # Timers are desynchronised by distributing them randomly 
   # over their cycle.
-  l = Cyton.draw(λ)
+  l = sample(λ)
   s = - l * rand()
   
   CycleTimer(l, kG1, kS, s, BrduStatus(brduLo, brduHi))
@@ -101,7 +101,7 @@ function stretchedCellFactory(birth::Float64=0.0)
   return cell
 end
 
-function runModel!(model::CellPopulation, runDuration::Float64, stimulus::Stimulus, callback::Function=(_) -> nothing)
+function runModel!(model::CytonModel, runDuration::Float64, stimulus::Stimulus, callback::Function=(_) -> nothing)
   Δt = modelTimeStep(model)
   for _ in 0:Δt:runDuration
     step(model, stimulus)
@@ -109,13 +109,13 @@ function runModel!(model::CellPopulation, runDuration::Float64, stimulus::Stimul
   end
 end
 
-function survivalCurves(model::CellPopulation)
+function survivalCurves(model::CytonModel)
   totalAlpha = Vector{Float64}()
   g1Alpha = Vector{Float64}()
   sg2mAlpha = Vector{Float64}()
   
   runDuration = model_time(model)
-  for cell in model.cells
+  for cell in keys(model.cells)
     push!(totalAlpha, remaining(cell, runDuration))
     cycle = cell.timers[1]
     if phase(cycle, runDuration) == G1
@@ -150,24 +150,25 @@ function survivalCurves(model::CellPopulation)
   println("Done at model time: $(model.properties[:step_cnt]*model.properties[:Δt])")
 end
 
-function dnaStainLevels(model::CellPopulation)
+function dnaStainLevels(model::CytonModel)
   time = modelTime(model)
-  NCells = length(model.cells)
+  cells = keys(model.cells)
+  NCells = length(cells)
   brdus = zeros(NCells)
   dnas = zeros(NCells)
   negDnaCnt = 0
-  for (i, c) in enumerate(model.cells)
+  for (i, c) in enumerate(cells)
     fate = c.timers[1]
     brdus[i] = fate.brdu.current
     (p, timeInPhase) = phase(fate, time)
     
-    l = Cyton.draw(dnaLo)
+    l = sample(dnaLo)
     if p == G1
       dnas[i] = l
       continue
     end
 
-    h = Cyton.draw(dnaHi)
+    h = sample(dnaHi)
     if p == S
       t = timeInPhase
       dnas[i] = l + (h-l)*t
